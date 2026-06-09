@@ -252,26 +252,18 @@ textarea { resize: vertical; min-height: 72px; }
 /* 設定頁 */
 .setup-hint { font-size: 13px; color: var(--text-sub); margin-bottom: 16px; line-height: 1.6; }
 
-.toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(16px);
-  background: var(--text);
-  color: white;
-  padding: 11px 22px;
-  border-radius: 100px;
-  font-size: 13px;
-  opacity: 0;
-  transition: all 0.25s;
-  z-index: 999;
-  pointer-events: none;
-  white-space: nowrap;
+.msg-bar {
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-all;
 }
-
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.toast.ok  { background: var(--success); }
-.toast.err { background: var(--danger); }
+.msg-bar.ok  { background: #e8f4ec; color: #2e6e45; }
+.msg-bar.err { background: #fce8e8; color: #8b2a2a; }
+.msg-bar     { background: #fff8e8; color: #7a5a1a; }
 </style>
 </head>
 <body>
@@ -284,6 +276,8 @@ textarea { resize: vertical; min-height: 72px; }
     <button class="tab-btn"        id="tab-setup" onclick="showTab('setup')">設定</button>
   </div>
 </header>
+
+<div id="msg-bar" class="msg-bar" style="display:none"></div>
 
 <!-- ══ 新增 ══ -->
 <div id="page-add" class="page active">
@@ -362,7 +356,7 @@ textarea { resize: vertical; min-height: 72px; }
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+
 
 <script>
 // ══ 狀態 ══
@@ -385,7 +379,7 @@ let allBookmarks = [];
   const sharedUrl = params.get('url');
 
   if (!GAS_URL || !TOKEN) {
-    showToast('請先在「設定」填入 GAS 網址與 Token', 'err');
+    showMsg('請先在「設定」填入 GAS 網址與 Token', 'err');
     showTab('setup');
     return;
   }
@@ -400,16 +394,29 @@ let allBookmarks = [];
   }
 })();
 
+// ══ 顯示訊息（取代 toast）══
+function showMsg(msg, type) {
+  const el = document.getElementById('msg-bar');
+  el.textContent = msg;
+  el.className = 'msg-bar ' + (type || '');
+  el.style.display = 'block';
+  if (type === 'ok') setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function hideMsg() {
+  document.getElementById('msg-bar').style.display = 'none';
+}
+
 // ══ 儲存設定 ══
 function saveConfig() {
   const url   = document.getElementById('cfg-url').value.trim();
   const token = document.getElementById('cfg-token').value.trim();
-  if (!url || !token) { showToast('兩個欄位都必填', 'err'); return; }
+  if (!url || !token) { showMsg('兩個欄位都必填', 'err'); return; }
   localStorage.setItem('bm_gas_url', url);
   localStorage.setItem('bm_token',   token);
   GAS_URL = url;
   TOKEN   = token;
-  showToast('設定已儲存', 'ok');
+  showMsg('設定已儲存', 'ok');
   loadConfig().then(() => showTab('add'));
 }
 
@@ -421,7 +428,7 @@ async function loadConfig() {
     config = res;
     populateSelects();
   } catch (e) {
-    showToast('無法連線 GAS：' + e.message, 'err');
+    showMsg('無法連線 GAS：' + e.message, 'err');
   }
 }
 
@@ -457,12 +464,12 @@ async function doFetch() {
     if (res.success) {
       if (res.title) document.getElementById('f-title').value = res.title;
       if (res.description) document.getElementById('f-desc').value = res.description;
-      showToast('已抓取頁面資訊', 'ok');
+      showMsg('已抓取頁面資訊', 'ok');
     } else {
-      showToast('無法抓取，請手動填標題', 'err');
+      showMsg('無法抓取，請手動填標題', 'err');
     }
   } catch(e) {
-    showToast('抓取失敗', 'err');
+    showMsg('抓取失敗', 'err');
   }
   document.getElementById('share-notice').style.display = 'none';
   btn.disabled = false; btn.textContent = '抓取';
@@ -471,7 +478,7 @@ async function doFetch() {
 // ══ 儲存書籤 ══
 async function saveBookmark() {
   const url = document.getElementById('f-url').value.trim();
-  if (!url) { showToast('請輸入網址', 'err'); return; }
+  if (!url) { showMsg('請輸入網址', 'err'); return; }
   const btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = '儲存中…';
   try {
@@ -486,10 +493,10 @@ async function saveBookmark() {
       notes:       document.getElementById('f-notes').value.trim(),
     };
     const res = await gasGet('add', { data: encodeURIComponent(JSON.stringify(data)) });
-    if (res.success) { showToast('書籤已儲存！', 'ok'); clearForm(); }
-    else showToast('儲存失敗：' + res.error, 'err');
+    if (res.success) { showMsg('書籤已儲存！', 'ok'); clearForm(); }
+    else showMsg('儲存失敗：' + res.error, 'err');
   } catch(e) {
-    showToast('錯誤：' + e.message, 'err');
+    showMsg('錯誤：' + e.message, 'err');
   }
   btn.disabled = false; btn.textContent = '儲存書籤';
 }
@@ -562,9 +569,9 @@ async function quickUpdate(id, field, value) {
     if (res.success) {
       const b = allBookmarks.find(x => x.id === id);
       if (b) { b[field] = value; renderList(); }
-      showToast('已更新為「' + value + '」', 'ok');
+      showMsg('已更新為「' + value + '」', 'ok');
     }
-  } catch(e) { showToast('更新失敗', 'err'); }
+  } catch(e) { showMsg('更新失敗', 'err'); }
 }
 
 // ══ GAS API 工具 ══
@@ -581,14 +588,6 @@ function showTab(name) {
   document.getElementById('page-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'list') loadList();
-}
-
-// ══ Toast ══
-function showToast(msg, type) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show ' + (type || '');
-  setTimeout(() => { el.className = 'toast'; }, 2800);
 }
 
 // ══ XSS 防護 ══
