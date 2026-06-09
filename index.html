@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>書籤</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:        #faf8f5;
+  --surface:   #ffffff;
+  --surface2:  #f5f2ee;
+  --border:    #e8e2da;
+  --text:      #2d2820;
+  --text-sub:  #8a7f74;
+  --accent:    #b5845a;
+  --accent-lt: #f0e6da;
+  --success:   #6a9e7f;
+  --danger:    #c47c6a;
+  --radius:    12px;
+  --shadow:    0 2px 12px rgba(45,40,32,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow);
+}
+
+header h1 { font-size: 17px; font-weight: 600; color: var(--accent); }
+
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.tab-btn {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.page { display: none; padding: 20px; max-width: 680px; margin: 0 auto; }
+.page.active { display: block; }
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+
+.form-group { margin-bottom: 16px; }
+.form-group:last-child { margin-bottom: 0; }
+
+label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-sub);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="password"],
+textarea,
+select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-lt);
+}
+
+textarea { resize: vertical; min-height: 72px; }
+
+.url-row { display: flex; gap: 8px; }
+.url-row input { flex: 1; }
+
+.btn-sm {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  background: var(--accent-lt);
+  color: var(--accent);
+}
+
+.btn-sm:hover { background: var(--accent); color: white; }
+.btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.btn-primary {
+  width: 100%;
+  padding: 13px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
+}
+
+.btn-primary:hover { background: #9e6e47; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.notice {
+  background: var(--accent-lt);
+  border: 1px solid #d4a87a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+/* 列表 */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-bar select { flex: 1; min-width: 110px; font-size: 13px; padding: 8px 10px; }
+
+.bookmark-list { display: flex; flex-direction: column; gap: 10px; }
+
+.bookmark-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s;
+}
+
+.bookmark-item:hover { border-color: var(--accent); }
+
+.bm-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+
+.bm-title { font-size: 14px; font-weight: 500; flex: 1; line-height: 1.4; }
+.bm-title a { color: var(--text); text-decoration: none; }
+.bm-title a:hover { color: var(--accent); }
+
+.bm-desc { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; line-height: 1.5; }
+
+.bm-meta {
+  font-size: 11px;
+  color: var(--text-sub);
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 8px;
+}
+
+.badge-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-weight: 500;
+}
+
+.s-未看  { background: #fef3e2; color: #b07d2a; }
+.s-已看  { background: #e8f4ec; color: #4a8a62; }
+.s-重要  { background: #fce8e8; color: #b04a4a; }
+.s-封存  { background: var(--surface2); color: var(--text-sub); }
+.b-待備份 { background: #e8eef8; color: #4a62a8; }
+.b-已完成 { background: #e8f4ec; color: #4a8a62; }
+.b-不用  { background: var(--surface2); color: var(--text-sub); }
+.c-cat  { background: var(--accent-lt); color: var(--accent); }
+.c-tag  { background: var(--surface2); color: var(--text-sub); }
+
+.quick-actions { display: flex; gap: 5px; margin-left: auto; flex-shrink: 0; }
+
+.action-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.loading { text-align: center; padding: 40px; color: var(--text-sub); font-size: 14px; }
+
+.empty { text-align: center; padding: 60px 20px; color: var(--text-sub); }
+.empty-icon { font-size: 36px; margin-bottom: 10px; }
+.empty p { font-size: 14px; }
+
+/* 設定頁 */
+.setup-hint { font-size: 13px; color: var(--text-sub); margin-bottom: 16px; line-height: 1.6; }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--text);
+  color: white;
+  padding: 11px 22px;
+  border-radius: 100px;
+  font-size: 13px;
+  opacity: 0;
+  transition: all 0.25s;
+  z-index: 999;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok  { background: var(--success); }
+.toast.err { background: var(--danger); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📌 書籤</h1>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-add"  onclick="showTab('add')">新增</button>
+    <button class="tab-btn"        id="tab-list" onclick="showTab('list')">列表</button>
+    <button class="tab-btn"        id="tab-setup" onclick="showTab('setup')">設定</button>
+  </div>
+</header>
+
+<!-- ══ 新增 ══ -->
+<div id="page-add" class="page active">
+  <div id="share-notice" class="notice" style="display:none">
+    🔗 已帶入分享的網址，正在抓取頁面資訊…
+  </div>
+  <div class="card">
+    <div class="form-group">
+      <label>網址</label>
+      <div class="url-row">
+        <input type="url" id="f-url" placeholder="https://...">
+        <button class="btn-sm" id="btn-fetch" onclick="doFetch()">抓取</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>標題</label>
+      <input type="text" id="f-title" placeholder="自動抓取，可手動修改">
+    </div>
+    <div class="form-group">
+      <label>描述</label>
+      <textarea id="f-desc" rows="2" placeholder="自動抓取，可清除或修改"></textarea>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>分類</label>
+        <select id="f-category"></select>
+      </div>
+      <div class="form-group">
+        <label>狀態</label>
+        <select id="f-status"></select>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>備份</label>
+        <select id="f-backup"></select>
+      </div>
+      <div class="form-group">
+        <label>Tags</label>
+        <input type="text" id="f-tags" placeholder="逗號分隔">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>備註</label>
+      <textarea id="f-notes" rows="2" placeholder="手動輸入"></textarea>
+    </div>
+    <button class="btn-primary" id="btn-save" onclick="saveBookmark()">儲存書籤</button>
+  </div>
+</div>
+
+<!-- ══ 列表 ══ -->
+<div id="page-list" class="page">
+  <div class="filter-bar">
+    <select id="flt-status"   onchange="renderList()"><option value="">全部狀態</option></select>
+    <select id="flt-category" onchange="renderList()"><option value="">全部分類</option></select>
+    <select id="flt-backup"   onchange="renderList()"><option value="">全部備份</option></select>
+  </div>
+  <div class="bookmark-list" id="bm-list">
+    <div class="loading">請先在設定頁填入 GAS 網址</div>
+  </div>
+</div>
+
+<!-- ══ 設定 ══ -->
+<div id="page-setup" class="page">
+  <div class="card">
+    <p class="setup-hint">填入一次之後會自動記住，不需要每次輸入。</p>
+    <div class="form-group">
+      <label>GAS 網址</label>
+      <input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <div class="form-group">
+      <label>Secret Token（你在 Code.gs 設定的密碼）</label>
+      <input type="password" id="cfg-token" placeholder="yourSecretToken">
+    </div>
+    <button class="btn-primary" onclick="saveConfig()">儲存設定</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ 狀態 ══
+let GAS_URL = '';
+let TOKEN   = '';
+let config  = { categories: [], statuses: [], backupOptions: [] };
+let allBookmarks = [];
+
+// ══ 初始化 ══
+(async function init() {
+  GAS_URL = localStorage.getItem('bm_gas_url')  || '';
+  TOKEN   = localStorage.getItem('bm_token')    || '';
+
+  // 設定頁預填
+  if (GAS_URL) document.getElementById('cfg-url').value   = GAS_URL;
+  if (TOKEN)   document.getElementById('cfg-token').value = TOKEN;
+
+  // 檢查是否有分享傳入的網址
+  const params    = new URLSearchParams(location.search);
+  const sharedUrl = params.get('url');
+
+  if (!GAS_URL || !TOKEN) {
+    showToast('請先在「設定」填入 GAS 網址與 Token', 'err');
+    showTab('setup');
+    return;
+  }
+
+  // 載入設定（分類、狀態選項）
+  await loadConfig();
+
+  if (sharedUrl) {
+    document.getElementById('f-url').value = decodeURIComponent(sharedUrl);
+    document.getElementById('share-notice').style.display = 'block';
+    doFetch();
+  }
+})();
+
+// ══ 儲存設定 ══
+function saveConfig() {
+  const url   = document.getElementById('cfg-url').value.trim();
+  const token = document.getElementById('cfg-token').value.trim();
+  if (!url || !token) { showToast('兩個欄位都必填', 'err'); return; }
+  localStorage.setItem('bm_gas_url', url);
+  localStorage.setItem('bm_token',   token);
+  GAS_URL = url;
+  TOKEN   = token;
+  showToast('設定已儲存', 'ok');
+  loadConfig().then(() => showTab('add'));
+}
+
+// ══ 載入 config ══
+async function loadConfig() {
+  try {
+    const res = await gasGet('config');
+    if (!res.success) throw new Error(res.error);
+    config = res;
+    populateSelects();
+  } catch (e) {
+    showToast('無法連線 GAS：' + e.message, 'err');
+  }
+}
+
+function populateSelects() {
+  const ids = ['f-category', 'flt-category'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = id.startsWith('flt') ? '<option value="">全部分類</option>' : '';
+    config.categories.forEach(c => el.innerHTML += `<option value="${c}">${c}</option>`);
+  });
+
+  ['f-status', 'flt-status'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.innerHTML = i === 1 ? '<option value="">全部狀態</option>' : '';
+    config.statuses.forEach(s => el.innerHTML += `<option value="${s}">${s}</option>`);
+  });
+
+  ['f-backup', 'flt-backup'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.innerHTML = i === 1 ? '<option value="">全部備份</option>' : '';
+    config.backupOptions.forEach(b => el.innerHTML += `<option value="${b}">${b}</option>`);
+  });
+}
+
+// ══ 抓取 Meta ══
+async function doFetch() {
+  const url = document.getElementById('f-url').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('btn-fetch');
+  btn.disabled = true; btn.textContent = '抓取中…';
+  try {
+    const res = await gasGet('fetchMeta', { url: encodeURIComponent(url) });
+    if (res.success) {
+      if (res.title) document.getElementById('f-title').value = res.title;
+      if (res.description) document.getElementById('f-desc').value = res.description;
+      showToast('已抓取頁面資訊', 'ok');
+    } else {
+      showToast('無法抓取，請手動填標題', 'err');
+    }
+  } catch(e) {
+    showToast('抓取失敗', 'err');
+  }
+  document.getElementById('share-notice').style.display = 'none';
+  btn.disabled = false; btn.textContent = '抓取';
+}
+
+// ══ 儲存書籤 ══
+async function saveBookmark() {
+  const url = document.getElementById('f-url').value.trim();
+  if (!url) { showToast('請輸入網址', 'err'); return; }
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  try {
+    const res = await gasPost('add', {
+      url,
+      title:       document.getElementById('f-title').value.trim(),
+      description: document.getElementById('f-desc').value.trim(),
+      category:    document.getElementById('f-category').value,
+      status:      document.getElementById('f-status').value,
+      backup:      document.getElementById('f-backup').value,
+      tags:        document.getElementById('f-tags').value.trim(),
+      notes:       document.getElementById('f-notes').value.trim(),
+    });
+    if (res.success) { showToast('書籤已儲存！', 'ok'); clearForm(); }
+    else showToast('儲存失敗：' + res.error, 'err');
+  } catch(e) {
+    showToast('錯誤：' + e.message, 'err');
+  }
+  btn.disabled = false; btn.textContent = '儲存書籤';
+}
+
+function clearForm() {
+  ['f-url','f-title','f-desc','f-tags','f-notes'].forEach(id => document.getElementById(id).value = '');
+  ['f-category','f-status','f-backup'].forEach(id => document.getElementById(id).selectedIndex = 0);
+}
+
+// ══ 列表 ══
+async function loadList() {
+  document.getElementById('bm-list').innerHTML = '<div class="loading">載入中…</div>';
+  try {
+    const res = await gasGet('list');
+    if (!res.success) throw new Error(res.error);
+    allBookmarks = res.data;
+    renderList();
+  } catch(e) {
+    document.getElementById('bm-list').innerHTML = `<div class="loading">載入失敗：${e.message}</div>`;
+  }
+}
+
+function renderList() {
+  const sf = document.getElementById('flt-status').value;
+  const cf = document.getElementById('flt-category').value;
+  const bf = document.getElementById('flt-backup').value;
+
+  const items = allBookmarks.filter(b =>
+    (!sf || b.status === sf) &&
+    (!cf || b.category === cf) &&
+    (!bf || b.backup === bf)
+  );
+
+  const el = document.getElementById('bm-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔖</div><p>沒有符合條件的書籤</p></div>';
+    return;
+  }
+
+  el.innerHTML = items.map(b => {
+    const host = (b.url.split('//')[1] || b.url).split('/')[0];
+    const tags = b.tags ? b.tags.split(',').map(t =>
+      `<span class="badge c-tag">${esc(t.trim())}</span>`).join('') : '';
+    return `
+    <div class="bookmark-item">
+      <div class="bm-top">
+        <div class="bm-title">
+          <a href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.title || b.url)}</a>
+        </div>
+        <div class="quick-actions">
+          <button class="action-btn" onclick="quickUpdate('${b.id}','status','已看')">已看</button>
+          <button class="action-btn" onclick="quickUpdate('${b.id}','status','重要')">重要</button>
+        </div>
+      </div>
+      ${b.description ? `<div class="bm-desc">${esc(b.description)}</div>` : ''}
+      <div class="bm-meta">${esc(host)} · ${esc(b.id)}</div>
+      <div class="badge-row">
+        <span class="badge c-cat">${esc(b.category)}</span>
+        <span class="badge s-${b.status}">${esc(b.status)}</span>
+        <span class="badge b-${b.backup}">${esc(b.backup)}</span>
+        ${tags}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function quickUpdate(id, field, value) {
+  try {
+    const res = await gasPost('update', null, { id, field, value });
+    if (res.success) {
+      const b = allBookmarks.find(x => x.id === id);
+      if (b) { b[field] = value; renderList(); }
+      showToast('已更新為「' + value + '」', 'ok');
+    }
+  } catch(e) { showToast('更新失敗', 'err'); }
+}
+
+// ══ GAS API 工具 ══
+async function gasGet(action, extra = {}) {
+  const params = new URLSearchParams({ token: TOKEN, action, ...extra });
+  const res = await fetch(GAS_URL + '?' + params);
+  return res.json();
+}
+
+async function gasPost(action, data = null, extra = {}) {
+  const body = { token: TOKEN, action, ...extra };
+  if (data) body.data = data;
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+// ══ 分頁切換 ══
+function showTab(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'list') loadList();
+}
+
+// ══ Toast ══
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type || '');
+  setTimeout(() => { el.className = 'toast'; }, 2800);
+}
+
+// ══ XSS 防護 ══
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
