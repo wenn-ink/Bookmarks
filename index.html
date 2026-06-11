@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>書籤</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#b5845a">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -282,7 +284,7 @@ textarea { resize: vertical; min-height: 72px; }
 <!-- ══ 新增 ══ -->
 <div id="page-add" class="page active">
   <div id="share-notice" class="notice" style="display:none">
-    🔗 已帶入分享的網址，正在抓取頁面資訊…
+    🔗 已帶入分享的網址。可以直接「快速儲存」（標題之後再批次補抓），或按「抓取」立即取得標題。
   </div>
   <div class="card">
     <div class="form-group">
@@ -330,6 +332,9 @@ textarea { resize: vertical; min-height: 72px; }
 
 <!-- ══ 列表 ══ -->
 <div id="page-list" class="page">
+  <button class="btn-sm" id="btn-batch" onclick="batchFetch()" style="width:100%; margin-bottom:12px; padding:10px;">
+    🔄 批次補抓標題（每次最多 10 筆）
+  </button>
   <div class="filter-bar">
     <select id="flt-status"   onchange="renderList()"><option value="">全部狀態</option></select>
     <select id="flt-category" onchange="renderList()"><option value="">全部分類</option></select>
@@ -365,6 +370,20 @@ let TOKEN   = '';
 let config  = { categories: [], statuses: [], backupOptions: [] };
 let allBookmarks = [];
 
+// ══ 從分享參數中找出網址 ══
+function extractSharedUrl(params) {
+  // 優先順序：url > text > title
+  const candidates = [params.get('url'), params.get('text'), params.get('title')];
+  for (const c of candidates) {
+    if (!c) continue;
+    const decoded = decodeURIComponent(c);
+    // 從文字中找出第一個 http(s) 網址
+    const match = decoded.match(/https?:\/\/[^\s]+/);
+    if (match) return match[0];
+  }
+  return null;
+}
+
 // ══ 初始化 ══
 (async function init() {
   GAS_URL = localStorage.getItem('bm_gas_url')  || '';
@@ -375,8 +394,9 @@ let allBookmarks = [];
   if (TOKEN)   document.getElementById('cfg-token').value = TOKEN;
 
   // 檢查是否有分享傳入的網址
-  const params    = new URLSearchParams(location.search);
-  const sharedUrl = params.get('url');
+  // Android Web Share Target 可能把網址放在 url、text、甚至 title 裡
+  const params = new URLSearchParams(location.search);
+  const sharedUrl = extractSharedUrl(params);
 
   if (!GAS_URL || !TOKEN) {
     showMsg('請先在「設定」填入 GAS 網址與 Token', 'err');
@@ -388,9 +408,8 @@ let allBookmarks = [];
   await loadConfig();
 
   if (sharedUrl) {
-    document.getElementById('f-url').value = decodeURIComponent(sharedUrl);
+    document.getElementById('f-url').value = sharedUrl;
     document.getElementById('share-notice').style.display = 'block';
-    doFetch();
   }
 })();
 
@@ -519,6 +538,29 @@ async function loadList() {
   }
 }
 
+// ══ 批次補抓標題 ══
+async function batchFetch() {
+  const btn = document.getElementById('btn-batch');
+  btn.disabled = true;
+  btn.textContent = '處理中…（可能需要一點時間）';
+  try {
+    const res = await gasGet('batchFetch');
+    if (!res.success) throw new Error(res.error);
+
+    if (res.processed === 0) {
+      showMsg('沒有需要補抓的書籤', 'ok');
+    } else {
+      const more = res.hasMore ? '，還有剩餘，可再按一次' : '，已全部處理完';
+      showMsg(`本次處理 ${res.processed} 筆：成功 ${res.fetched} 筆，失敗 ${res.failed} 筆${more}`, 'ok');
+      loadList();
+    }
+  } catch(e) {
+    showMsg('批次補抓失敗：' + e.message, 'err');
+  }
+  btn.disabled = false;
+  btn.textContent = '🔄 批次補抓標題（每次最多 10 筆）';
+}
+
 function renderList() {
   const sf = document.getElementById('flt-status').value;
   const cf = document.getElementById('flt-category').value;
@@ -540,13 +582,15 @@ function renderList() {
     const host = (b.url.split('//')[1] || b.url).split('/')[0];
     const tags = b.tags ? b.tags.split(',').map(t =>
       `<span class="badge c-tag">${esc(t.trim())}</span>`).join('') : '';
+    const isFailed = b.title === '解析失敗';
     return `
     <div class="bookmark-item">
       <div class="bm-top">
-        <div class="bm-title">
-          <a href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.title || b.url)}</a>
+        <div class="bm-title" style="${isFailed ? 'color:var(--danger)' : ''}">
+          <a href="${esc(b.url)}" target="_blank" rel="noopener" style="${isFailed ? 'color:var(--danger)' : ''}">${esc(b.title || b.url)}</a>
         </div>
         <div class="quick-actions">
+          ${isFailed ? `<button class="action-btn" onclick="retryFetch('${b.id}')">重抓</button>` : ''}
           <button class="action-btn" onclick="quickUpdate('${b.id}','status','已看')">已看</button>
           <button class="action-btn" onclick="quickUpdate('${b.id}','status','重要')">重要</button>
         </div>
@@ -561,6 +605,22 @@ function renderList() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ══ 重抓「解析失敗」的書籤 ══
+async function retryFetch(id) {
+  try {
+    // 先把標題清空，這樣下次批次補抓會處理它
+    const res = await gasGet('update', { id, field: 'title', value: encodeURIComponent('') });
+    if (res.success) {
+      const b = allBookmarks.find(x => x.id === id);
+      if (b) { b.title = ''; }
+      showMsg('已標記為待補抓，按「批次補抓」即可重新嘗試', 'ok');
+      renderList();
+    }
+  } catch(e) {
+    showMsg('操作失敗：' + e.message, 'err');
+  }
 }
 
 async function quickUpdate(id, field, value) {
