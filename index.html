@@ -332,9 +332,14 @@ textarea { resize: vertical; min-height: 72px; }
 
 <!-- ══ 列表 ══ -->
 <div id="page-list" class="page">
-  <button class="btn-sm" id="btn-batch" onclick="batchFetch()" style="width:100%; margin-bottom:12px; padding:10px;">
-    🔄 批次補抓標題（每次最多 10 筆）
-  </button>
+  <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <button class="btn-sm" id="btn-batch" onclick="batchFetch()" style="flex:1; padding:10px;">
+      🔄 批次補抓標題（每次最多 10 筆）
+    </button>
+    <button class="btn-sm" onclick="loadList()" style="padding:10px 14px;">
+      ↻ 重新整理
+    </button>
+  </div>
   <div class="filter-bar">
     <select id="flt-status"   onchange="renderList()"><option value="">全部狀態</option></select>
     <select id="flt-category" onchange="renderList()"><option value="">全部分類</option></select>
@@ -709,12 +714,14 @@ async function saveEdit() {
   };
 
   try {
-    for (const [field, value] of Object.entries(fields)) {
-      await gasGet('update', { id, field, value: encodeURIComponent(value) });
-    }
-    // 更新本地資料
+    const res = await gasGet('updateAll', {
+      id,
+      data: encodeURIComponent(JSON.stringify(fields))
+    });
+    if (!res.success) throw new Error(res.error);
+    // 同步更新前端記憶體
     const b = allBookmarks.find(x => x.id === id);
-    if (b) Object.assign(b, { ...fields, description: fields.description });
+    if (b) Object.assign(b, fields);
     closeModal();
     renderList();
     showMsg('已儲存', 'ok');
